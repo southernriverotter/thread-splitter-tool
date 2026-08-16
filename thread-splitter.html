@@ -111,20 +111,26 @@ function splitThread(text, symbol){
   const overhead = (symbol.length * 2) + 2;
   const maxChunk = MAX_LEN - overhead;
 
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if(words.length === 0) return [];
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+  if(paragraphs.length === 0) return [];
 
   const rawChunks = [];
   let current = '';
-  for(const word of words){
-    const test = current ? current + ' ' + word : word;
-    if(test.length <= maxChunk || !current){
-      current = test;
-    } else {
-      rawChunks.push(current);
-      current = word;
-    }
-  }
+
+  paragraphs.forEach(para => {
+    const words = para.split(/\s+/).filter(Boolean);
+    words.forEach((word, wIndex) => {
+      const isFirstWordOfPara = wIndex === 0;
+      const separator = current === '' ? '' : (isFirstWordOfPara ? '\n\n' : ' ');
+      const test = current + separator + word;
+      if(test.length <= maxChunk || current === ''){
+        current = test;
+      } else {
+        rawChunks.push(current);
+        current = word;
+      }
+    });
+  });
   if(current) rawChunks.push(current);
 
   return rawChunks.map(chunk => symbol + ' ' + chunk + ' ' + symbol);
