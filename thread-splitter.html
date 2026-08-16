@@ -133,7 +133,13 @@ function splitThread(text, symbol){
   });
   if(current) rawChunks.push(current);
 
-  return rawChunks.map(chunk => symbol + ' ' + chunk + ' ' + symbol);
+  const n = rawChunks.length;
+  return rawChunks.map((chunk, i) => {
+    let result = chunk;
+    if(i > 0) result = symbol + ' ' + result;
+    if(i < n - 1) result = result + ' ' + symbol;
+    return result;
+  });
 }
 
 function escapeHtml(str){
