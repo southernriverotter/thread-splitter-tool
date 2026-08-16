@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Thread Splitter</title>
+<style>
+  :root{ color-scheme: light; }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:#ffffff; color:#000000; font-family:sans-serif; padding:36px 16px 60px; }
+  .wrap{ max-width:520px; margin:0 auto; }
+  h1{ font-size:24px; font-weight:700; margin:0 0 24px; text-align:center; }
+
+  .symbol-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .symbol-btn{
+    flex:1; font-size:16px; padding:9px 0; background:#ffffff; border:1px solid #000000;
+    color:#000000; cursor:pointer;
+  }
+  .symbol-btn.active{ background:#000000; color:#ffffff; }
+
+  input#customSymbol{
+    flex:1.6; font-family:sans-serif; font-size:14px; padding:9px 4px;
+    border:1px solid #000000; background:#ffffff; color:#000000; text-align:center;
+  }
+  input#customSymbol::placeholder{ color:#888888; }
+
+  textarea{
+    width:100%; min-height:150px; font-family:sans-serif; font-size:14px; line-height:1.6;
+    padding:12px; border:1px solid #000000; background:#ffffff; color:#000000; resize:vertical;
+    margin-bottom:22px;
+  }
+  textarea:focus{ outline:2px solid #000000; outline-offset:1px; }
+
+  .divider{ border:none; border-top:1px solid #000000; margin:0 0 22px; }
+
+  .chunk{
+    position:relative; border:1px solid #000000; padding:14px; margin-bottom:10px; cursor:pointer;
+  }
+  .chunk-label{ font-size:12px; font-weight:700; margin-bottom:8px; }
+  .chunk-text{
+    white-space:pre-wrap; word-wrap:break-word; font-size:14px; line-height:1.6;
+  }
+  .chunk .count{ font-size:11px; text-align:right; margin-top:8px; }
+  .chunk .copied-overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.92); font-size:15px; font-weight:700; opacity:0; pointer-events:none;
+    transition:opacity 0.15s;
+  }
+  .chunk .copied-overlay.show{ opacity:1; }
+
+  .footer{ text-align:center; font-size:12px; margin-top:34px; }
+  .footer a{ color:#000000; text-decoration:none; border-bottom:1px solid #000000; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Thread Splitter</h1>
+
+  <div class="symbol-row" id="symbolRow">
+    <button class="symbol-btn active" data-symbol="—">—</button>
+    <button class="symbol-btn" data-symbol="↓">↓</button>
+    <button class="symbol-btn" data-symbol="→">→</button>
+    <button class="symbol-btn" data-symbol="+">+</button>
+    <input type="text" id="customSymbol" placeholder="custom" maxlength="4">
+  </div>
+
+  <textarea id="input" placeholder="paste the whole thing here"></textarea>
+
+  <hr class="divider">
+
+  <div id="output"></div>
+
+  <div class="footer">made by <a href="https://x.com/alloysavvy" target="_blank">@alloysavvy</a></div>
+</div>
+
+<script>
+const MAX_LEN = 280;
+let currentSymbol = '—';
+
+document.querySelectorAll('.symbol-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSymbol = btn.dataset.symbol;
+    document.getElementById('customSymbol').value = '';
+    split();
+  });
+});
+
+document.getElementById('customSymbol').addEventListener('input', (e) => {
+  const val = e.target.value.trim();
+  if(val){
+    document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+    currentSymbol = val;
+  } else {
+    const first = document.querySelector('.symbol-btn');
+    first.classList.add('active');
+    currentSymbol = first.dataset.symbol;
+  }
+  split();
+});
+
+function splitThread(text, symbol){
+  const overhead = (symbol.length * 2) + 2;
+  const maxChunk = MAX_LEN - overhead;
+
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if(words.length === 0) return [];
+
+  const rawChunks = [];
+  let current = '';
+  for(const word of words){
+    const test = current ? current + ' ' + word : word;
+    if(test.length <= maxChunk || !current){
+      current = test;
+    } else {
+      rawChunks.push(current);
+      current = word;
+    }
+  }
+  if(current) rawChunks.push(current);
+
+  return rawChunks.map(chunk => symbol + ' ' + chunk + ' ' + symbol);
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function split(){
+  const raw = document.getElementById('input').value;
+  const chunks = splitThread(raw, currentSymbol);
+  const output = document.getElementById('output');
+
+  if(chunks.length === 0){ output.innerHTML = ''; return; }
+
+  let html = '';
+  chunks.forEach((chunk, i) => {
+    html += `<div class="chunk" onclick="copyChunk(${i})">
+      <div class="chunk-label">${i + 1}</div>
+      <div class="chunk-text">${escapeHtml(chunk)}</div>
+      <div class="count">${chunk.length} / ${MAX_LEN}</div>
+      <div class="copied-overlay" id="overlay${i}">Copied!</div>
+    </div>`;
+  });
+  output.innerHTML = html;
+  window._chunks = chunks;
+}
+
+function copyChunk(i){
+  const text = window._chunks[i];
+  const overlay = document.getElementById('overlay' + i);
+  const done = () => { overlay.classList.add('show'); setTimeout(() => overlay.classList.remove('show'), 1100); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(done);
+  } else { done(); }
+}
+
+document.getElementById('input').addEventListener('input', split);
+</script>
+</body>
+</html>
