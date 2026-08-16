@@ -32,12 +32,17 @@
   }
   textarea:focus{ outline:2px solid #000000; outline-offset:1px; }
 
-  .divider{ border:none; border-top:1px solid #000000; margin:0 0 22px; }
+  .divider{ border:none; border-top:1px solid #000000; margin:0 0 14px; }
+  .section-label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:14px; }
 
   .chunk{
     position:relative; border:1px solid #000000; padding:14px; margin-bottom:10px; cursor:pointer;
+    transition:border-color 0.15s, background 0.15s;
   }
-  .chunk-label{ font-size:12px; font-weight:700; margin-bottom:8px; }
+  .chunk.copied-state{ border-color:#1d9bf0; background:rgba(29,155,240,0.06); }
+  .chunk-label{ font-size:12px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .chunk-check{ color:#1d9bf0; display:none; }
+  .chunk.copied-state .chunk-check{ display:inline; }
   .chunk-text{
     white-space:pre-wrap; word-wrap:break-word; font-size:14px; line-height:1.6;
   }
@@ -68,6 +73,7 @@
   <textarea id="input" placeholder="paste the whole thing here"></textarea>
 
   <hr class="divider">
+  <div class="section-label">Your Thread</div>
 
   <div id="output"></div>
 
@@ -139,8 +145,8 @@ function split(){
 
   let html = '';
   chunks.forEach((chunk, i) => {
-    html += `<div class="chunk" onclick="copyChunk(${i})">
-      <div class="chunk-label">${i + 1}</div>
+    html += `<div class="chunk" id="chunk${i}" onclick="copyChunk(${i})">
+      <div class="chunk-label">${i + 1}<span class="chunk-check">✓</span></div>
       <div class="chunk-text">${escapeHtml(chunk)}</div>
       <div class="count">${chunk.length} / ${MAX_LEN}</div>
       <div class="copied-overlay" id="overlay${i}">Copied!</div>
@@ -153,7 +159,12 @@ function split(){
 function copyChunk(i){
   const text = window._chunks[i];
   const overlay = document.getElementById('overlay' + i);
-  const done = () => { overlay.classList.add('show'); setTimeout(() => overlay.classList.remove('show'), 1100); };
+  const chunkEl = document.getElementById('chunk' + i);
+  const done = () => {
+    overlay.classList.add('show');
+    chunkEl.classList.add('copied-state');
+    setTimeout(() => overlay.classList.remove('show'), 1100);
+  };
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(done).catch(done);
   } else { done(); }
